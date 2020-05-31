@@ -1,0 +1,261 @@
+* Module 1:
+
+** AnyAirline public portal
+https://anypoint.mulesoft.com/exchange/portals/anyairline/
+
+** host
+<initials>-check-in-papi-<date>.us-e2.cloudhub.io
+
+** Automated policies
+#[attributes]
+xo
+** Sample data for PUT /tickets/{PNR}/checkin
+{
+  "lastName": "Smith",
+  "numBags": 2
+}
+
+** keytool command
+keytool -v -genkeypair -keyalg RSA -dname "cn=localhost, ou=Training, o=MuleSoft, c=US" -ext SAN="DNS:localhost,IP:127.0.0.1" -validity 365 -alias server -keystore "check-in-papi.p12" -storetype pkcs12 -storepass "mule12345"
+
+** Gopal's command
+keytool -v -genkeypair -keystore check-in-papi-dev.p12 -storetype pkcs12 -storepass mule12345 -alias server -keyalg RSA -validity 365 
+
+** Run configurations
+-M-Danypoint.platform.client_id=<org client_id>
+-M-Danypoint.platform.client_secret=<org client_secret>
+
+** curl command for CH version
+curl -i -X PUT -H 'Content-Type: application/json' -d '{"lastName":"Smith","numBags":2}' https://<initials>-check-in-papi-<date>.us-e2.cloudhub.io/api/v1/tickets/PNR123/checkin
+
+* Module 2
+
+** naming best practices
+kebab-case for flow/error-handler names
+camelCase for global elements
+
+** properties.yaml
+api:
+  groupId: "41987c24-73e0-415d-867f-d7f5863a1065"
+  artifactId: "check-in-papi"
+  version: "1.0.1"
+  spec: "resource::${api.groupId}:${api.artifactId}:${api.version}:oas:zip:api.json"
+  majorVersion: "v1"
+  port: "8082"
+  id: "16038327"
+  
+tls.keystore:
+  type: "pkcs12"
+  path: "check-in-papi.p12"
+  alias: "server"
+  password: "mule12345"
+  keyPassword: "mule12345"
+
+** Filtering resource folders
+	<build>
+	
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources-filtered</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+		
+		<testResources>
+			<testResource>
+				<directory>src/test/resources</directory>
+				<filtering>false</filtering>
+			</testResource>
+			<testResource>
+				<directory>src/test/resources-filtered</directory>
+				<filtering>true</filtering>
+			</testResource>
+		</testResources>
+...
+	</build>
+
+** POM properties
+  <api.groupId>...</api.groupId>
+  <api.artifactId>check-in-papi</api.artifactId>
+  <api.version>1.0.0</api.version>
+
+** settings.xml
+<settings>
+  <servers>
+    <server>
+      <id>anypoint-exchange-v2</id>
+      <username>gk20200308</username>
+      <password>qWERTY123456</password>
+    </server>
+    <server>
+      <id>cloudhub</id>
+      <username>gk20200308</username>
+      <password>qWERTY123456</password>      
+    </server>
+  </servers>
+</settings>
+
+
+** parent-pom.xml config to deploy to CH
+<configuration>
+  <cloudHubDeployment>
+    <server>cloudhub</server>
+    <environment>prod</environment>
+    <region>us-east-2</region>
+    <muleVersion>${app.runtime.semver}</muleVersion>
+    <workers>1</workers>
+    <workerType>MICRO</workerType>
+    <objectStoreV2>true</objectStoreV2>
+    <applicationName>gkar-20200308-${project.artifactId}-dev</applicationName>
+    <deploymentTimeout>900000</deploymentTimeout>
+    <properties>
+      <anypoint.platform.client_id>${ap.client_id}</anypoint.platform.client_id>
+      <anypoint.platform.client_secret>${ap.client_secret}</anypoint.platform.client_secret>
+    </properties>
+  </cloudHubDeployment>
+</configuration>
+
+** Maven command to deploy to CH
+
+mvn -DmuleDeploy deploy -Dap.client_id=5ade43f1de8b407d81d3bcc7c0ba281d -Dap.client_secret=4598B4Af70ED4319800bfaE1efCeAE9C
+
+** The secure tool command
+
+java -cp secure-properties-tool.jar com.mulesoft.tools.SecurePropertiesTool file encrypt Blowfish CBC secure12345 secure-properties-dev.yaml tmp.yaml
+
+** Add the -M-Dencrypt.key=secure12345 to the runtime args
+
+-M-Dencrypy.key=secure12345
+
+** Change mule-artifact.json to hide sensitive data
+
+"secureProperties": [
+  "encrypt.key",
+  "anypoint.platform.client_id",
+  "anypoint.platform.client_secret"
+]
+
+** Properties in parent-pom
+
+<properties>
+  <deployment.prefix>gkar-</deployment.prefix>
+  <deployment.suffix>-20200322-${deployment.env}</deployment.suffix>
+  <deployment.name>${deployement.prefix}${project.artifactId}${deployment.suffix}</deployment.name>
+</properties>
+
+** Deploy to CH
+
+mvn -DmuleDeploy deploy -Dap.client_id=1a60c1fd2ed74c219625aaf3f8fc6a80 -Dap.client_secret=8f882bFBb4854Ed393DC4BFf142b868C -Dencrypt.key=secure12345 -Ddeployment.env=dev
+
+mvn -DmuleDeploy deploy -Dap.client_id=1a60c1fd2ed74c219625aaf3f8fc6a80 -Dap.client_secret=8f882bFBb4854Ed393DC4BFf142b868C -Dencrypt.key=secure12345 -Ddeployment.env=test
+
+mvn -DmuleDeploy deploy -Dap.client_id=1a60c1fd2ed74c219625aaf3f8fc6a80 -Dap.client_secret=8f882bFBb4854Ed393DC4BFf142b868C -Dencrypt.key=secure12345 -Ddeployment.env=prod -Ddeployment.suffix=
+
+** JSON Logger, services AP account
+
+guest-mule/Mulesoft1
+
+** JSON Logger BOM changes
+
+<mssvcs.ap.orgid>cc568b69-a181-4d4c-b044-90054c52897b</mssvcs.ap.orgid>
+
+<repository>
+  <id>anypoint-exchange-${mssvcs.ap.orgid}</id>
+  <name>MuleSoft Services Anypoint Exchange</name>
+  <url>https://maven.anypoint.mulesoft.com/api/v2/maven</url>
+  <layout>default</layout>
+</repository>
+
+** JSON Logger POM changes
+
+<dependency>
+  <groupId>${mssvcs.ap.orgid}</groupId>
+  <artifactId>json-logger</artifactId>
+  <classifier>mule-plugin</classifier>
+</dependency>
+
+
+** Health checks properties PARENT-POM changes
+
+<api.layer.eapi>Experience</api.layer.eapi>
+<api.layer.papi>Process</api.layer.papi>
+<api.layer.sapi>System</api.layer.sapi>
+	
+** Health check mule-maven-plugin property changes
+
+<anypoint.platform.config.analytics.agent.enabled>true</anypoint.platform.config.analytics.agent.enabled>
+<anypoint.platform.visualizer.layer>${api.layer}</anypoint.platform.visualizer.layer>
+
+** Deploy to dev and check the visualizer
+
+mvn -DmuleDeploy deploy -Dap.client_id=1a60c1fd2ed74c219625aaf3f8fc6a80 -Dap.client_secret=8f882bFBb4854Ed393DC4BFf142b868C -Dencrypt.key=secure12345 -Ddeployment.env=dev
+
+
+** Creds to demo Anypoint Monitoring
+anyairline-instr / Instruct0rAnyA1rl1ne1nstr
+
+** Install BOM and PARENT-POM to m2
+
+mvn install:install-file -Dpackaging=pom -Dfile=bom.xml -DpomFile=bom.xml
+mvn install:install-file -Dpackaging=pom -Dfile=parent-pom.xml -DpomFile=parent-pom.xml
+
+
+* Module 3
+
+** To add to the configuration of the MUNIT plugin in the PARENT POM
+
+<runtimeVersion>${app.runtime}</runtimeVersion>
+<runtimeProduct>MULE_EE</runtimeProduct>
+<environmentVariables>
+  <encrypt.key>${encrypt.key}</encrypt.key>
+</environmentVariables>
+
+** BOM pluginRepository for the Mule runtime
+
+<pluginRepository>
+  <id>releases-ee</id>
+  <name>Mule Release Repository</name>
+  <url>https://repository.mulesoft.org/nexus/content/repositories/releases-ee/</url>		
+</pluginRepository>
+
+
+** Settings.xml releases-ee server:
+
+<server>
+  <id>releases-ee</id>
+  <username>muletraining.nexus</username>
+  <password>Support2019</password>
+</server>
+
+** Settings.xml for the RAML needed by flights-management-api
+
+<server>
+  <id>anypoint-exchange-a63e6d25-8aaf-4512-b36d-d91b90a55c4a</id>
+  <username>anyairline-exchgv</username>
+  <password>ExchgAnyA1rl1neV1ewer</password>
+</server>
+
+
+** system-domain pom.xml, add apps-commons to sharedLibraries
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.mule.tools.maven</groupId>
+                <artifactId>mule-maven-plugin</artifactId>
+                <configuration>
+                	<sharedLibraries>
+                		<sharedLibrary>
+                			<groupId>com.mulesoft.training.anyairline</groupId>
+                			<artifactId>apps-commons</artifactId>
+                		</sharedLibrary>
+                	</sharedLibraries>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
